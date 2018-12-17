@@ -9,7 +9,7 @@
     "archi": "resnet18",
     "channels": "rgbd",
     "dim_action": 4,
-    "dir": "models/bc",
+    "dir": "storage/models/bc",
     "num_frames": 3,
     "num_skills": 1,
     "steps_action": [
