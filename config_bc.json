@@ -1,6 +1,6 @@
 {
   "dataset": {
-    "dir": "demos",
+    "dir": "storage/models/demos",
     "max_demos": null,
     "num_cameras": 1
   },
