@@ -28,6 +28,6 @@
     "lam_grip": 0.1,
     "learning_rate": 0.001,
     "resume": true,
-    "workers": 8
+    "workers": 0
   }
 }
