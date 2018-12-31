@@ -3,5 +3,5 @@
     - DART
     - DAgger
 - experiments:
-    - reproduire les experiments de DART pt 1) et 2)
+    - reproduire les experiments de DART fig 2
     - ??? (DAgger)
