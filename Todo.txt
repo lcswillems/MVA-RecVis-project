@@ -2,7 +2,6 @@
     - an expert
     - DART
     - DAgger
-    - Backplay?
 - experiments:
     - reproduire les experiments de DART pt 1) et 2)
     - ??? (DAgger)

@@ -16,7 +16,7 @@ python -m bcmuj.dataset.collect_data --agent script --dataset storage/demos --ep
 ## 2.Train a model by BC
 
 ```
-python -m bc.net.train with config_bc.json
+python -m bc.net.train with config.json
 ```
 
 ## 3. Test the BC-trained model
