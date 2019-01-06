@@ -1,8 +1,6 @@
 import numpy as np
 import itertools
 
-# Slightly modified version of https://gitlab.inria.fr/rstrudel/bcmuj/blob/master/bcmuj/scripts/script_agent.py
-
 class PickPlaceExpert:
     def __init__(self, dt):
         self._dt = dt/4
@@ -38,7 +36,6 @@ class PickPlaceExpert:
         if action is not None:
             return np.append(action['linear_velocity']/4, action['grip_velocity']/2)
         return np.zeros(4)
-        return action
 
     def _compute_skill(self, skill, gripper_pos):
         name = skill[0]

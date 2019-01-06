@@ -2,8 +2,6 @@ import numpy as np
 from pyquaternion import Quaternion
 from gym.utils import seeding
 
-# Slightly modified version of https://gitlab.inria.fr/rstrudel/bcmuj/blob/master/bcmuj/scene/camera.py
-
 # all angles are defined using radians
 
 class Camera:
