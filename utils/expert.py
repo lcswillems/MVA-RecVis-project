@@ -1,16 +1,10 @@
 import numpy as np
 import itertools
+from gym.utils import seeding
 
 class PickPlaceExpert:
-    def __init__(self, dt):
+    def reset(self, dt, cube_pos, goal_pos):
         self._dt = dt/4
-
-        self._idx_script = 0
-        self._gen = itertools.chain([])
-        self._acc = False
-        self._it_acc = 0
-
-    def reset(self, cube_pos, goal_pos):
         self._script = [
             ('grip_open', None),
             ('move_tool', (cube_pos+[0, 0, 0.1], 'open')),
@@ -20,8 +14,10 @@ class PickPlaceExpert:
         ]
         self._idx_script = 0
         self._gen = itertools.chain([])
+        self._acc = False
+        self._it_acc = 0
 
-    def act(self, obs):
+    def get_action(self, obs):
         gripper_pos = obs['gripper_pos']
         action = next(self._gen, None)
         if action is None:
@@ -33,9 +29,9 @@ class PickPlaceExpert:
                 action = next(self._gen, None)
             else:
                 action = None
-        if action is not None:
-            return np.append(action['linear_velocity']/4, action['grip_velocity']/2)
-        return np.zeros(4)
+        if action is None:
+            action = dict(linear_velocity=np.zeros(3), grip_velocity=0)
+        return action
 
     def _compute_skill(self, skill, gripper_pos):
         name = skill[0]
@@ -85,3 +81,19 @@ class PickPlaceExpert:
                 dist = np.subtract(pos_target, gripper_pos)
                 if np.linalg.norm(dist) < 0.02 or self._it_acc > 4:
                     self._acc = False
+
+class GaussianExpert:
+    def __init__(self, expert, Σ=None, np_random=np.random):
+        self.expert = expert
+        self.Σ = Σ
+        self.np_random = np_random
+
+    def seed(self, seed=None):
+        self.np_random, _ = seeding.np_random(seed)
+
+    def reset(self, *args, **kwargs):
+        return self.expert.reset(*args, **kwargs)
+
+    def act(self, obs):
+        assert self.Σ is not None
+        return self.np_random.multivariate_normal(self.expert.act(obs), self.Σ)

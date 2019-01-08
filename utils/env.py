@@ -38,6 +38,12 @@ class WrappedEnv(gym.Env):
 
         return wrapped_obs
 
+    def _wrap_action(self, action):
+        dx = np.zeros(4)
+        dx[:3] = action['linear_velocity']/4
+        dx[3] = action['grip_velocity']/2
+        return dx
+
     def reset(self):
         obs = self.env.reset()
 
@@ -53,7 +59,7 @@ class WrappedEnv(gym.Env):
         return self._wrap_obs(obs)
 
     def step(self, action):
-        obs, r, done, info = self.env.step(action)
+        obs, r, done, info = self.env.step(self._wrap_action(action))
         return self._wrap_obs(obs), r, done, info
 
     def seed(self, seed=None):
