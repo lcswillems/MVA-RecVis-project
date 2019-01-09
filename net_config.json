@@ -1,6 +1,5 @@
 {
     "dataset": {
-        "dir": "storage/models/demos",
         "max_demos": null,
         "num_cameras": 1
     },
@@ -9,7 +8,6 @@
         "archi": "resnet18",
         "channels": "rgbd",
         "dim_action": 4,
-        "dir": "storage/models/bc",
         "num_frames": 3,
         "num_skills": 1,
         "steps_action": [
@@ -19,7 +17,6 @@
             30
         ]
     },
-    "seed": 816459706,
     "train": {
         "batch_size": 64,
         "epochs": 200,

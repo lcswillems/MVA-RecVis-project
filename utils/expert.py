@@ -1,6 +1,5 @@
 import numpy as np
 import itertools
-from gym.utils import seeding
 
 class PickPlaceExpert:
     def reset(self, dt, cube_pos, goal_pos):
@@ -83,17 +82,13 @@ class PickPlaceExpert:
                     self._acc = False
 
 class GaussianExpert:
-    def __init__(self, expert, Σ=None, np_random=np.random):
+    def __init__(self, expert, Σ=None):
         self.expert = expert
         self.Σ = Σ
-        self.np_random = np_random
-
-    def seed(self, seed=None):
-        self.np_random, _ = seeding.np_random(seed)
 
     def reset(self, *args, **kwargs):
         return self.expert.reset(*args, **kwargs)
 
     def act(self, obs):
         assert self.Σ is not None
-        return self.np_random.multivariate_normal(self.expert.act(obs), self.Σ)
+        return np.random.multivariate_normal(self.expert.act(obs), self.Σ)

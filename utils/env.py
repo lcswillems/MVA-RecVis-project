@@ -29,8 +29,8 @@ class WrappedEnv(gym.Env):
         depth = (depth[::-1]*255).astype(np.uint8)
 
         wrapped_obs = {
-            'rgb': rgb,
-            'depth': depth,
+            'rgb0': rgb,
+            'depth0': depth,
             'gripper_pos': self.sim.data.get_site_xpos('robot0:grip'),
             'cube_pos': self.sim.data.get_site_xpos('object0'),
             'goal_pos': obs['desired_goal']
