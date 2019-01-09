@@ -16,7 +16,7 @@ from utils import aaT, GaussianExpert, TrajectoriesManager
 #                          steps_action=4)
 #       et regarder le script train de BC
 
-tm = TrajectoriesManager(seed_init, dataset_path, nb_processes)
+tm = TrajectoriesManager(seed_init, dataset_path, nb_workers)
 learner = Learner(dataset_path)
 
 def BC(env, gen_learner, expert, N, S, T):

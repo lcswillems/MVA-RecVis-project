@@ -10,10 +10,10 @@ from bc.dataset.utils import compress_images, process_trajectory, gather_dataset
 from . import make_env
 
 class TrajectoriesManager:
-    def __init__(self, seed_init, dataset_path, nb_processes=1):
+    def __init__(self, seed_init, dataset_path, nb_workers=1):
         self.seed = seed_init
         self.dataset_path = dataset_path
-        self.nb_processes = nb_processes
+        self.nb_workers = nb_workers
 
     def _store_traj(self, obss, actions, seed):
         frames_chunk, scalars_chunk = process_trajectory(
@@ -39,7 +39,7 @@ class TrajectoriesManager:
             self._store_traj(obss, actions, seed)
 
         print('Collecting trajectories {}-{}'.format(self.seed, self.seed + nb_trajs - 1))
-        Parallel(n_jobs=self.nb_processes)(
+        Parallel(n_jobs=self.nb_workers)(
             delayed(traj_collector_wrapper)(seed)
             for seed in tqdm(range(self.seed, self.seed + nb_trajs)))
         self.seed += nb_trajs
