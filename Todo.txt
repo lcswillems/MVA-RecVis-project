@@ -1,7 +1,4 @@
-- to implement:
-    - an expert
-    - DART
-    - DAgger
+- faire les TODO de train.py
 - experiments:
     - reproduire les experiments de DART fig 2
     - ??? (DAgger)
