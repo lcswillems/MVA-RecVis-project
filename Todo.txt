@@ -1,4 +1,5 @@
-- faire les TODO de train.py
+- mettre à jour les arguments par défaut de train.py avec les bonnes valeurs
+- définir les expériments à faire pour Dagger
 - experiments:
     - reproduire les experiments de DART fig 2
     - ??? (DAgger)

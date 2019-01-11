@@ -2,6 +2,7 @@ import os
 import pickle as pkl
 from joblib import Parallel, delayed
 from tqdm import tqdm
+import numpy as np
 
 from bc.dataset.dataset_lmdb import DatasetWriter
 from bc.dataset.utils import compress_images, process_trajectory, gather_dataset
@@ -37,9 +38,10 @@ class TrajectoriesManager:
             env = make_env(seed)
             obss, actions = traj_collector(env, *params)
             self._store_traj(obss, actions, seed)
+            return obss, actions
 
         print('Collecting trajectories {}-{}'.format(self.seed, self.seed + nb_trajs - 1))
-        Parallel(n_jobs=self.nb_workers)(
+        trajs = Parallel(n_jobs=self.nb_workers)(
             delayed(traj_collector_wrapper)(seed, params)
             for seed in tqdm(range(self.seed, self.seed + nb_trajs)))
         self.seed += nb_trajs
@@ -47,32 +49,16 @@ class TrajectoriesManager:
         print('Gathering trajectories dataset into one dataset...')
         gather_dataset(self.trajs_dir)
 
+        return trajs
+
     def collect_perfect_trajs(self, nb_trajs, expert, T):
-        self.collect_trajs(nb_trajs, collect_perfect_traj, expert, T)
+        return self.collect_trajs(nb_trajs, collect_perfect_traj, expert, T)
 
     def collect_corrected_trajs(self, nb_trajs, learner, expert, β, T):
-        self.collect_trajs(nb_trajs, collect_corrected_traj, learner, expert, β, T)
+        return self.collect_trajs(nb_trajs, collect_corrected_traj, learner, expert, β, T)
 
 def collect_perfect_traj(env, expert, T):
-    obss = []
-    actions = []
-
-    obs = env.reset()
-    expert.reset(env.dt, obs['cube_pos'], obs['goal_pos'])
-
-    for _ in range(T):
-        compress_images(obs)
-        obss.append(obs)
-
-        expert_action = expert.get_action(obs)
-        actions.append(expert_action)
-
-        obs, _, done, _ = env.step(expert_action)
-
-        if done:
-            break
-
-    return obss, actions
+    return collect_corrected_traj(env, None, expert, 1, T)
 
 def collect_corrected_traj(env, learner, expert, β, T):
     obss = []
@@ -85,10 +71,10 @@ def collect_corrected_traj(env, learner, expert, β, T):
         compress_images(obs)
         obss.append(obs)
 
-        expert_action = expert.get_action(obs)
+        expert_action = expert.act(obs)
         actions.append(expert_action)
 
-        action = expert_action if np.random.rand() < β else learner.get_action(obs)
+        action = expert_action if np.random.rand() < β else learner.act(obs)
         obs, _, done, _ = env.step(action)
 
         if done:

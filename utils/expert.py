@@ -16,7 +16,7 @@ class PickPlaceExpert:
         self._acc = False
         self._it_acc = 0
 
-    def get_action(self, obs):
+    def act(self, obs):
         gripper_pos = obs['gripper_pos']
         action = next(self._gen, None)
         if action is None:
@@ -90,5 +90,6 @@ class GaussianExpert:
         return self.expert.reset(*args, **kwargs)
 
     def act(self, obs):
-        assert self.Σ is not None
+        if self.Σ is None:
+            return self.expert.act(obs)
         return np.random.multivariate_normal(self.expert.act(obs), self.Σ)

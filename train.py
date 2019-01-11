@@ -4,80 +4,84 @@
 #           - ne pas stocker les trajectoires dans le dataset pour
 #             `val_trajs = tm.collect_corrected_trajs(S, None, expert, 1, T)` de DAgger
 # TODO: finir d'adapter DART et DAgger
-# TODO: mettre à jour les paramètres : mettre bonnes valeurs par déf, enlever des requirements
 
-import argparse
 import numpy as np
 import os
 import datetime
+from sacred import Experiment
+from bc.config import model_ingredient, train_ingredient
 
-from utils import aaT, PickPlaceExpert, GaussianExpert, TrajectoriesManager, Learner
+from utils import aaT, va, PickPlaceExpert, GaussianExpert, TrajectoriesManager, Learner
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--algo", required=True)
-parser.add_argument("--N", type=int, default=50)
-parser.add_argument("--S", type=int, default=10)
-parser.add_argument("--T", type=int, default=50)
-parser.add_argument("--workers", type=int, default=16)
-parser.add_argument("--model-basedir", default="storage/models")
-parser.add_argument("--trajs-basedir", default="storage/trajs")
-parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--alpha", type=float, default=3)
-parser.add_argument("--p", type=float, default=.9)
-args = parser.parse_args()
+ex = Experiment('train', ingredients=[train_ingredient])
 
-assert args.algo in ["bc", "dart", "dagger"]
+@ex.config
+def config():
+    algo = None
+    N = 50
+    S = 1
+    T = 50
+    nb_workers = 16
+    model_basedir = "storage/models"
+    trajs_basedir = "storage/trajs"
+    seed = 1
+    α = 3
+    p = .9
 
-# Seed numpy
+@ex.automain
+def main(algo, N, S, T, nb_workers, model_basedir, trajs_basedir, seed, α, p, train):
+    assert algo in ["bc", "dart", "dagger"]
 
-np.random.seed(args.seed)
+    # Seed numpy
 
-# Define trajs_dir and model_dir
+    np.random.seed(seed)
 
-suffix = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
-slug = args.algo + "_" + suffix
-trajs_dir = os.path.join(args.trajs_basedir, slug)
-model_dir = os.path.join(args.model_basedir, slug)
+    # Define trajs_dir and model_dir
 
-# Instantiate trajectories manager, learner, expert
+    suffix = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
+    slug = algo + "_" + suffix
+    trajs_dir = os.path.join(trajs_basedir, slug)
+    model_dir = os.path.join(model_basedir, slug)
 
-tm = TrajectoriesManager(trajs_dir, args.workers)
-learner = Learner(model_dir, trajs_dir)
-expert = PickPlaceExpert()
+    # Instantiate trajectories manager, learner, expert
 
-# The algorithms
+    tm = TrajectoriesManager(trajs_dir, nb_workers)
+    learner = Learner(model_dir, trajs_dir, train)
+    expert = PickPlaceExpert()
 
-if args.algo == "bc":
+    # The algorithms
 
-    for _ in range(args.N):
-        tm.collect_perfect_trajs(args.S, expert, args.T)
-        learner.train()
+    if algo == "bc":
 
-elif args.algo == "dart":
+        for _ in range(N):
+            tm.collect_perfect_trajs(S, expert, T)
+            learner.train()
 
-    gaussian_expert = GaussianExpert(expert)
+    elif algo == "dart":
 
-    trajs_i = tm.collect_perfect_trajs(1, expert, args.T)
+        gaussian_expert = GaussianExpert(expert)
 
-    for _ in range(args.N):
-        Σh = 1/args.T * np.sum([aaT(learner.act(o) - a) for o, a in zip(d) for d in zip(trajs_i)], axis=0)
-        Σ = args.alpha/(args.T * np.trace(Σh))
-        gaussian_expert.Σ = Σ
+        trajs_i = tm.collect_corrected_trajs(1, gaussian_expert, expert, 0, T)
 
-        trajs_i = tm.collect_perfect_trajs(args.S, expert, args.T)
-        learner.train()
+        for _ in range(N):
+            Σh = 1/T * np.sum([aaT(va(learner.act(o)) - va(a)) for t in trajs_i for o, a in zip(*t)], axis=0)
+            Σ = α/(T * np.trace(Σh))
+            gaussian_expert.Σ = Σ
 
-elif args.algo == "dagger":
+            trajs_i = tm.collect_corrected_trajs(1, gaussian_expert, expert, 0, T)
+            learner.train()
 
-    learners = [gen_learner() for _ in range(args.N)]
+    elif algo == "dagger":
 
-    for i in range(args.N):
-        β = args.p ** i
-        learner = None if i == 0 else learners[i-1]
-        tm.collect_corrected_trajs(args.S, learner, expert, β, args.T)
-        learners[i].train()
+        learners = [gen_learner() for _ in range(N)]
 
-    val_trajs = tm.collect_corrected_trajs(args.S, None, expert, 1, args.T)
-    scores = np.array([learner.evaluate(val_trajs) for learner in learners])
+        for i in range(N):
+            β = p ** i
+            learner = None if i == 0 else learners[i-1]
+            tm.collect_corrected_trajs(S, learner, expert, β, T)
+            learners[i].train()
 
-    best_learner = learners[scores.argmax()]
+        val_trajs = tm.collect_perfect_trajs(S, expert, T)
+        scores = np.array([learner.evaluate(val_trajs) for learner in learners])
+
+        best_learner = learners[scores.argmax()]
