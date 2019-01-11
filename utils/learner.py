@@ -1,4 +1,5 @@
 import os
+import torch as th
 from sacred import Experiment
 from bc.net import log
 from bc.net.train import train
@@ -28,4 +29,4 @@ class Learner:
             self.ex_scheduler, self.ex_starting_epoch, self.ex_train)
 
     def act(self, obs):
-        return self.net.get_action(obs)
+        return self.net.get_action({'frames': th.tensor(obs['rgb0']).unsqueeze(0)})

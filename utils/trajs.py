@@ -3,6 +3,7 @@ import pickle as pkl
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import numpy as np
+import copy
 
 from bc.dataset.dataset_lmdb import DatasetWriter
 from bc.dataset.utils import compress_images, process_trajectory, gather_dataset
@@ -36,8 +37,8 @@ class TrajectoriesManager:
     def collect_trajs(self, nb_trajs, traj_collector, *params):
         def traj_collector_wrapper(seed, params):
             env = make_env(seed)
-            obss, actions = traj_collector(env, *params)
-            self._store_traj(obss, actions, seed)
+            obss, compressed_obss, actions = traj_collector(env, *params)
+            self._store_traj(compressed_obss, copy.deepcopy(actions), seed)
             return obss, actions
 
         print('Collecting trajectories {}-{}'.format(self.seed, self.seed + nb_trajs - 1))
@@ -62,22 +63,25 @@ def collect_perfect_traj(env, expert, T):
 
 def collect_corrected_traj(env, learner, expert, β, T):
     obss = []
+    compressed_obss = []
     actions = []
 
     obs = env.reset()
     expert.reset(env.dt, obs['cube_pos'], obs['goal_pos'])
 
     for _ in range(T):
-        compress_images(obs)
-        obss.append(obs)
-
         expert_action = expert.act(obs)
+        action = expert_action if np.random.rand() < β else learner.act(obs)
+
+        obss.append(obs)
+        compressed_obs = copy.deepcopy(obs)
+        compress_images(compressed_obs)
+        compressed_obss.append(compressed_obs)
         actions.append(expert_action)
 
-        action = expert_action if np.random.rand() < β else learner.act(obs)
         obs, _, done, _ = env.step(action)
 
         if done:
             break
 
-    return obss, actions
+    return obss, compressed_obss, actions
