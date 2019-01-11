@@ -1,3 +1,5 @@
+- faire tourner les 3 algos de train
+- trouver comment evaluer les réseaux
 - mettre à jour les arguments par défaut de train.py avec les bonnes valeurs
 - définir les expériments à faire pour Dagger
 - experiments:
