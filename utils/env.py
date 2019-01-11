@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import mujoco_py
 
 from .camera import Camera
 
@@ -12,6 +13,7 @@ def make_env(seed):
 class WrappedEnv(gym.Env):
     def __init__(self, env, resolution=(224, 224)):
         self.env = env
+        self.env.unwrapped.viewer = mujoco_py.MjRenderContext(self.env.unwrapped.sim, opengl_backend='glfw')
         self.resolution = resolution
 
         self.sim = self.env.unwrapped.sim
