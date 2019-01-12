@@ -29,4 +29,4 @@ class Learner:
             self.ex_scheduler, self.ex_starting_epoch, self.ex_train)
 
     def act(self, obs):
-        return self.net.get_action({'frames': th.tensor(obs['rgb0']).unsqueeze(0)})
+        return self.net({'frames': obs})

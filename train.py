@@ -10,18 +10,19 @@ import os
 import datetime
 from sacred import Experiment
 from bc.config import model_ingredient, train_ingredient
+import torch as th
 
-from utils import aaT, va, PickPlaceExpert, GaussianExpert, TrajectoriesManager, Learner
+from utils import aaT, va, transform_frames, PickPlaceExpert, GaussianExpert, TrajectoriesManager, Learner
 
 ex = Experiment('train', ingredients=[train_ingredient])
 
 @ex.config
 def config():
     algo = None
-    N = 50
-    S = 1
+    N = 10
+    S = 2
     T = 50
-    nb_workers = 16
+    nb_workers = 2
     model_basedir = "storage/models"
     trajs_basedir = "storage/trajs"
     seed = 1
@@ -61,15 +62,35 @@ def main(algo, N, S, T, nb_workers, model_basedir, trajs_basedir, seed, α, p, t
 
         gaussian_expert = GaussianExpert(expert)
 
-        trajs_i = tm.collect_corrected_trajs(1, gaussian_expert, expert, 0, T)
+        trajs_i = tm.collect_corrected_trajs(S, gaussian_expert, expert, 0, T)
 
         for _ in range(N):
-            Σh = 1/T * np.sum([aaT(va(learner.act(o)) - va(a)) for t in trajs_i for o, a in zip(*t)], axis=0)
-            Σ = α/(T * np.trace(Σh))
-            gaussian_expert.Σ = Σ
-
-            trajs_i = tm.collect_corrected_trajs(1, gaussian_expert, expert, 0, T)
             learner.train()
+            with th.no_grad():
+                mat = th.zeros((4, 4)).cuda()
+                for t in trajs_i:
+                    obs, act = t
+                    obs = transform_frames(obs)
+                    act = th.tensor(list(map(va, act)), dtype=th.float32).cuda()
+                    obs = th.cat((
+                        th.cat((th.zeros((2, 4, 224, 224)), obs[2:]), dim=0),
+                        th.cat((th.zeros((1, 4, 224, 224)), obs[1:]), dim=0),
+                        obs),
+                        dim=1
+                    )
+                    pred = learner.act(obs)
+                    pred_act = th.cat((
+                            2 * (pred[:, 0] > pred[:, 1]).unsqueeze(1).float() - 1,
+                            pred[:, 2:5],
+                    ), dim=1)
+                    diff = pred_act - act
+                    mat += (diff[:, :, None] * diff[:, None, :]).sum(dim=0)
+
+                Σh = 1/(T * S) * mat
+                Σ = α * Σh.cpu().numpy() / (T * S * th.trace(Σh).item())
+                gaussian_expert.Σ = Σ
+
+            trajs_i = tm.collect_corrected_trajs(S, gaussian_expert, expert, 0, T)
 
     elif algo == "dagger":
 

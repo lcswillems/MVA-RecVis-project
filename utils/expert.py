@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+from utils import va, unva
 
 class PickPlaceExpert:
     def reset(self, dt, cube_pos, goal_pos):
@@ -92,4 +93,4 @@ class GaussianExpert:
     def act(self, obs):
         if self.Σ is None:
             return self.expert.act(obs)
-        return np.random.multivariate_normal(self.expert.act(obs), self.Σ)
+        return unva(np.random.multivariate_normal(va(self.expert.act(obs)), self.Σ))

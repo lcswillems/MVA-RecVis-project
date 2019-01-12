@@ -18,9 +18,9 @@
         ]
     },
     "train": {
-        "batch_size": 64,
-        "epochs": 200,
-        "eval_interval": 4,
+        "batch_size": 192,
+        "epochs": 100,
+        "eval_interval": 1,
         "eval_proportion": 0.05,
         "lam_grip": 0.1,
         "learning_rate": 0.001,
