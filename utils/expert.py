@@ -31,7 +31,7 @@ class PickPlaceExpert:
                 action = None
         if action is None:
             action = dict(linear_velocity=np.zeros(3), grip_velocity=0)
-        return action
+        return action, action
 
     def _compute_skill(self, skill, gripper_pos):
         name = skill[0]
@@ -91,6 +91,7 @@ class GaussianExpert:
         return self.expert.reset(*args, **kwargs)
 
     def act(self, obs):
+        perfect_action, _ = self.expert.act(obs)
         if self.Σ is None:
-            return self.expert.act(obs)
-        return unva(np.random.multivariate_normal(va(self.expert.act(obs)), self.Σ))
+            return perfect_action, perfect_action
+        return perfect_action, unva(np.random.multivariate_normal(va(perfect_action), self.Σ))

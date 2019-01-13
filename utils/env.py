@@ -4,16 +4,19 @@ import mujoco_py
 
 from .camera import Camera
 
-def make_env(seed):
+def make_env(seed, render=False):
     env = gym.make("FetchPickAndPlace-v1")
-    wrapped_env = WrappedEnv(env)
+    wrapped_env = WrappedEnv(env, render)
     wrapped_env.seed(seed)
     return wrapped_env
 
 class WrappedEnv(gym.Env):
-    def __init__(self, env, resolution=(224, 224)):
+    def __init__(self, env, render, resolution=(224, 224)):
         self.env = env
-        self.env.unwrapped.viewer = mujoco_py.MjRenderContext(self.env.unwrapped.sim, opengl_backend='glfw')
+        if not render:
+            self.env.unwrapped.viewer = mujoco_py.MjRenderContext(self.env.unwrapped.sim, opengl_backend='glfw')
+        else:
+            self.render = self.env.render
         self.resolution = resolution
 
         self.sim = self.env.unwrapped.sim

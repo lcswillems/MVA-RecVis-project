@@ -20,13 +20,13 @@ class Learner:
 
         self.net, self.ex_optimizer, self.ex_scheduler, self.ex_starting_epoch, self.ex_dir_net = make_net(model)
 
-    def train(self):
+    def train(self, starting_epoch=0):
         train_loader, eval_loader, statistics = make_loader(self.ex_model, self.ex_dataset)
         write_info(statistics)
         log.init_writers(self.ex_dir_net)
         train_loss = get_train_loss()
         train(train_loader, eval_loader, self.net, self.ex_dir_net, train_loss, self.ex_optimizer,
-            self.ex_scheduler, self.ex_starting_epoch, self.ex_train)
+            self.ex_scheduler, starting_epoch, self.ex_train)
 
     def act(self, obs):
         return self.net({'frames': obs})

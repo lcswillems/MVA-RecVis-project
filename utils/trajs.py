@@ -4,6 +4,8 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import numpy as np
 import copy
+from utils import transform_frames
+import torch as th
 
 from bc.dataset.dataset_lmdb import DatasetWriter
 from bc.dataset.utils import compress_images, process_trajectory, gather_dataset
@@ -70,14 +72,23 @@ def collect_corrected_traj(env, learner, expert, β, T):
     expert.reset(env.dt, obs['cube_pos'], obs['goal_pos'])
 
     for _ in range(T):
-        expert_action = expert.act(obs)
-        action = expert_action if np.random.rand() < β else learner.act(obs)
+        perfect_action, action = expert.act(obs)
+        if np.random.rand() >= β:
+            with th.no_grad():
+                action = learner.act(th.cat((
+                    th.tensor(obs['rgb0'].copy()).permute(2, 0, 1).float() / 255,
+                    th.tensor(obs['depth0'].copy()).unsqueeze(0).float() / 255
+                )).unsqueeze(0)).view(-1)
+                action = dict(
+                    grip_velocity=2 * (action[0] > action[1]).item(),
+                    linear_velocity=action[2:5].cpu().numpy(),
+                )
 
         obss.append(obs)
         compressed_obs = copy.deepcopy(obs)
         compress_images(compressed_obs)
         compressed_obss.append(compressed_obs)
-        actions.append(expert_action)
+        actions.append(perfect_action)
 
         obs, _, done, _ = env.step(action)
 
