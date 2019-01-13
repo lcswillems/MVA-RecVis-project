@@ -22,7 +22,7 @@ def config():
     N = 1000
     S = 40
     T = 50
-    nb_workers = 6
+    nb_workers = 3
     model_basedir = "storage/models"
     trajs_basedir = "storage/trajs"
     seed = 1
@@ -93,4 +93,4 @@ def main(algo, N, S, T, nb_workers, model_basedir, trajs_basedir, seed, α, p, t
         for i in range(N):
             β = p ** i
             tm.collect_corrected_trajs(S, learner, expert, β, T)
-            learner.train()
+            learner.train(i * train['epochs'])
