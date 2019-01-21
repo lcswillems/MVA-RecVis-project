@@ -19,15 +19,15 @@ ex = Experiment('train', ingredients=[train_ingredient])
 @ex.config
 def config():
     algo = None
-    N = 1000
-    S = 40
+    N = 30
+    S = 100
     T = 50
-    nb_workers = 3
+    nb_workers = 4
     model_basedir = "storage/models"
     trajs_basedir = "storage/trajs"
     seed = 1
     α = 3
-    p = .9
+    p = .5
 
 @ex.automain
 def main(algo, N, S, T, nb_workers, model_basedir, trajs_basedir, seed, α, p, train):
@@ -40,7 +40,7 @@ def main(algo, N, S, T, nb_workers, model_basedir, trajs_basedir, seed, α, p, t
     # Define trajs_dir and model_dir
 
     suffix = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
-    slug = algo + "_" + suffix
+    slug = algo# + "_" + suffix
     trajs_dir = os.path.join(trajs_basedir, slug)
     model_dir = os.path.join(model_basedir, slug)
 
@@ -70,12 +70,12 @@ def main(algo, N, S, T, nb_workers, model_basedir, trajs_basedir, seed, α, p, t
                     obs, act = t
                     obs = transform_frames(obs)
                     act = th.tensor(list(map(va, act)), dtype=th.float32).cuda()
-                    # obs = th.cat((
-                    #     th.cat((th.zeros((2, 4, 224, 224)), obs[2:]), dim=0),
-                    #     th.cat((th.zeros((1, 4, 224, 224)), obs[1:]), dim=0),
-                    #     obs),
-                    #     dim=1
-                    # )
+                    obs = th.cat((
+                        th.cat((th.zeros((2, 4, 224, 224)), obs[2:]), dim=0),
+                        th.cat((th.zeros((1, 4, 224, 224)), obs[1:]), dim=0),
+                        obs),
+                        dim=1
+                    )
                     pred = learner.act(obs)
                     pred_act = th.cat((
                             2 * (pred[:, 0] > pred[:, 1]).unsqueeze(1).float() - 1,
@@ -92,5 +92,5 @@ def main(algo, N, S, T, nb_workers, model_basedir, trajs_basedir, seed, α, p, t
 
         for i in range(N):
             β = p ** i
-            tm.collect_corrected_trajs(S, learner, expert, β, T)
+            tm.collect_corrected_trajs(S, learner, expert, β, T, accumulate_obs=False)
             learner.train(i * train['epochs'])

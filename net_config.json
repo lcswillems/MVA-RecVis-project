@@ -5,23 +5,26 @@
     },
     "model": {
         "action_space": "tool",
-        "archi": "sresnet10",
+        "archi": "resnet18",
         "channels": "rgbd",
         "dim_action": 4,
-        "num_frames": 1,
+        "num_frames": 3,
         "num_skills": 1,
         "steps_action": [
-            1
+            1,
+            10,
+            20,
+            30
         ]
     },
     "train": {
-        "batch_size": 400,
-        "epochs": 3,
+        "batch_size": 32,
+        "epochs": 1,
         "eval_interval": 1,
         "eval_proportion": 0.05,
         "lam_grip": 0.1,
         "learning_rate": 0.001,
         "resume": true,
-        "workers": 0
+        "workers": 8
     }
 }

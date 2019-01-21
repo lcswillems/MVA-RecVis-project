@@ -57,13 +57,13 @@ class TrajectoriesManager:
     def collect_perfect_trajs(self, nb_trajs, expert, T):
         return self.collect_trajs(nb_trajs, collect_perfect_traj, expert, T)
 
-    def collect_corrected_trajs(self, nb_trajs, learner, expert, β, T):
-        return self.collect_trajs(nb_trajs, collect_corrected_traj, learner, expert, β, T)
+    def collect_corrected_trajs(self, nb_trajs, learner, expert, β, T, accumulate_obs=True):
+        return self.collect_trajs(nb_trajs, collect_corrected_traj, learner, expert, β, T, accumulate_obs)
 
 def collect_perfect_traj(env, expert, T):
-    return collect_corrected_traj(env, None, expert, 1, T)
+    return collect_corrected_traj(env, None, expert, 1, T, accumulate_obs=False)
 
-def collect_corrected_traj(env, learner, expert, β, T):
+def collect_corrected_traj(env, learner, expert, β, T, accumulate_obs=True):
     obss = []
     compressed_obss = []
     actions = []
@@ -71,23 +71,32 @@ def collect_corrected_traj(env, learner, expert, β, T):
     obs = env.reset()
     expert.reset(env.dt, obs['cube_pos'], obs['goal_pos'])
 
-    for _ in range(T):
+    for t in range(T):
+        obss.append(obs)
+        if not accumulate_obs and len(obss) > 3:
+            obss = obss[-3:]
+        compressed_obs = copy.deepcopy(obs)
+        compress_images(compressed_obs)
+        compressed_obss.append(compressed_obs)
+
         perfect_action, action = expert.act(obs)
         if np.random.rand() >= β:
             with th.no_grad():
-                action = learner.act(th.cat((
-                    th.tensor(obs['rgb0'].copy()).permute(2, 0, 1).float() / 255,
-                    th.tensor(obs['depth0'].copy()).unsqueeze(0).float() / 255
-                )).unsqueeze(0)).view(-1)
+                def transform_frame(frame):
+                    return th.cat((
+                        th.tensor(obs['rgb0'].copy()).permute(2, 0, 1).float() / 255,
+                        th.tensor(obs['depth0'].copy()).unsqueeze(0).float() / 255
+                    ))
+                frames = []
+                for f in range(3):
+                    frames.append(obss[-1-min(f, t)])
+                frames = th.cat(list(map(transform_frame, reversed(frames)))).unsqueeze(0)
+                action = learner.act(frames).view(-1)
                 action = dict(
                     grip_velocity=2 * (action[0] > action[1]).item(),
                     linear_velocity=action[2:5].cpu().numpy(),
                 )
 
-        obss.append(obs)
-        compressed_obs = copy.deepcopy(obs)
-        compress_images(compressed_obs)
-        compressed_obss.append(compressed_obs)
         actions.append(perfect_action)
 
         obs, _, done, _ = env.step(action)
