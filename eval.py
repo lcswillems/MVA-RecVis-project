@@ -1,10 +1,13 @@
 import utils.env
 import argparse
-from utils import va
+import utils
 from utils.expert import PickPlaceExpert
-from bc.agent.net_agent import NetAgent
 import matplotlib.pyplot as plt
 import matplotlib.image
+import torch as th
+import bc.net.zoo as zoo
+import numpy as np
+import tqdm
 
 from concurrent.futures import ProcessPoolExecutor
 import pickle
@@ -13,13 +16,14 @@ def compute(pars):
     return main(*pars)
 
 def main(args, epoch, verbose=True):
-    seed = 98546
+    seed = 9218546
     env = utils.env.make_env(seed)
-    if args.net != '%agent':
-        agent = NetAgent(archi='resnet18', channels='rgbd', path='./storage/models/{}'.format(args.net),
-                         num_frames=3, skip=1, max_steps=-1, epoch=epoch,
-                         action_space='tool', dim_action=4, steps_action=4,
-                         num_skills=1)
+    if args.net != '%expert':
+        net = zoo.Network(
+            archi='resnet18', timesteps=3, input_type='rgbd',
+            action_space='tool', dim_action=4,
+            path='./storage/models/{}/resnet18_{}.pth'.format(args.net, epoch if epoch >= 0 else 'current'),
+            steps_action=4, lam_grip=.1, device='cuda')
 
     expert = PickPlaceExpert()
 
@@ -39,11 +43,18 @@ def main(args, epoch, verbose=True):
         obs = env.reset()
         expert.reset(env.dt, obs['cube_pos'], obs['goal_pos'])
         done = False
+        if args.net != '%expert':
+            frames = None
         while not done:
-            obs_dict = dict(rgb=obs['rgb0'], depth=obs['depth0'])
-            if args.net != '%agent':
-                act = agent.get_action(obs_dict)
-                ep_err += ((va(act) - va(expert.act(obs)[0])) ** 2).sum()
+            if args.net != '%expert':
+                frame = utils.other.transform_frames([obs])
+                if frames is None:
+                    frames = frame.repeat(1, 3, 1, 1)
+                else:
+                    frames[:, :-4] = frames[:, 4:]
+                    frames[:, -4:] = frame
+                act = net.get_dic_action(dict(frames=frames))
+                ep_err += ((utils.other.va(act) - utils.other.va(expert.act(obs)[0])) ** 2).sum()
             else:
                 act = expert.act(obs)[0]
             obs, rew, done, success = env.step(act)
@@ -82,12 +93,16 @@ if __name__ == '__main__':
     parser.add_argument('--render', action='store_const', default=False, const=True)
     parser.add_argument('--save', action='store_const', default=False, const=True)
     parser.add_argument('--eps', action='store', default=1000, type=int)
-    parser.add_argument('--all', action='store_const', default=False, const=True)
+    parser.add_argument('--all', action='store', default=0, type=int)
     args = parser.parse_args()
-    if args.all:
-        epochs = list(range(2, args.epoch, 2)) + [-1]
+    if args.all > 0:
+        epochs = np.arange(0, args.epoch, args.all) + args.all
         with ProcessPoolExecutor(max_workers=6) as executor:
-            success = list(executor.map(compute, [(args, epoch, False) for epoch in epochs]))
+            success = []
+            for s in tqdm.tqdm(
+                    executor.map(compute, [(args, epoch, False) for epoch in epochs]),
+                    total=len(epochs)):
+                success.append(s)
         print(success)
         pickle.dump(success, open('storage/success/{}'.format(args.net), 'wb'))
     else:

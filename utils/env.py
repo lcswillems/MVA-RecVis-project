@@ -14,12 +14,12 @@ class WrappedEnv(gym.Env):
     def __init__(self, env, render, resolution=(224, 224)):
         self.env = env
         if not render:
-            self.env.unwrapped.viewer = mujoco_py.MjRenderContext(self.env.unwrapped.sim, opengl_backend='glfw')
+            self.unwrapped.viewer = mujoco_py.MjRenderContext(self.unwrapped.sim, opengl_backend='glfw')
         else:
             self.render = self.env.render
         self.resolution = resolution
 
-        self.sim = self.env.unwrapped.sim
+        self.sim = self.unwrapped.sim
         self.dt = self.sim.nsubsteps * self.sim.model.opt.timestep
         self.camera = Camera(dr=(0, 0.1), dtheta=(-np.pi/3, np.pi/3), dphi=(np.pi/20, np.pi/6))
 
@@ -38,7 +38,8 @@ class WrappedEnv(gym.Env):
             'depth0': depth,
             'gripper_pos': self.sim.data.get_site_xpos('robot0:grip'),
             'cube_pos': self.sim.data.get_site_xpos('object0'),
-            'goal_pos': obs['desired_goal']
+            'goal_pos': obs['desired_goal'],
+            'gripper_state': self.sim.data.get_joint_qpos('robot0:l_gripper_finger_joint')
         }
 
         return wrapped_obs
@@ -54,7 +55,7 @@ class WrappedEnv(gym.Env):
 
         sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
         site_id = self.sim.model.site_name2id('target0')
-        self.sim.model.site_pos[site_id] = self.env.unwrapped.goal - sites_offset[0]
+        self.sim.model.site_pos[site_id] = self.unwrapped.goal - sites_offset[0]
 
         self.sim.model.cam_pos[-1] = self.camera.pos
         self.sim.model.cam_quat[-1] = self.camera.quat
