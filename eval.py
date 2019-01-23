@@ -53,10 +53,11 @@ def main(args, epoch, verbose=True):
                 else:
                     frames[:, :-4] = frames[:, 4:]
                     frames[:, -4:] = frame
-                act = net.get_dic_action(dict(frames=frames))
+                obs['frames'] = frames
+                act = net.get_dic_action(obs)
                 ep_err += ((utils.other.va(act) - utils.other.va(expert.act(obs)[0])) ** 2).sum()
             else:
-                act = expert.act(obs)[0]
+                _, act = expert.act(obs)
             obs, rew, done, success = env.step(act)
 
             ep_rew += rew
