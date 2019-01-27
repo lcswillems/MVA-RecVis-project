@@ -1,8 +1,9 @@
 import numpy as np
 from utils import va, unva
+import utils
 
 class PickPlaceExpert:
-    def reset(self, dt, cube_pos, goal_pos):
+    def __init__(self, dt):
         self.dt = dt/4
 
     def act(self, obs):
@@ -11,7 +12,7 @@ class PickPlaceExpert:
         goal_pos = obs['goal_pos']
         gripper_state = obs['gripper_state']
 
-        pos_threshold = 1e-2
+        pos_threshold = 3e-2
         state_closed = .03
         state_opened = .05
 
@@ -39,14 +40,14 @@ class PickPlaceExpert:
 
         return action, action
 
+    def act_batch(self, obs, frames=None):
+        return [self.act(o) for o in obs]
+
 class DAggerExpert:
     def __init__(self, expert, net):
         self.expert = expert
         self.net = net
         self.β = 1
-
-    def reset(self, *args, **kwargs):
-        self.expert.reset(*args, **kwargs)
 
     def act(self, obs):
         perfect_act, act = self.expert.act(obs)
@@ -54,16 +55,27 @@ class DAggerExpert:
             act = self.net.get_dic_action(obs)
         return perfect_act, act
 
+    def act_batch(self, obs, frames=None):
+        acts = self.expert.act_batch(obs)
+        pred = self.net(dict(frames=frames), compute_grad=False).cpu().numpy()
+        for i in range(len(acts)):
+            if np.random.rand() >= self.β:
+                acts[i] = acts[i][0], utils.other.pred_to_act(pred[i])
+        return acts
+
 class GaussianExpert:
     def __init__(self, expert, Σ=None):
         self.expert = expert
         self.Σ = Σ
 
-    def reset(self, *args, **kwargs):
-        return self.expert.reset(*args, **kwargs)
+    def set_Σ(self, Σ):
+        self.Σ = Σ
 
     def act(self, obs):
         perfect_act, _ = self.expert.act(obs)
         if self.Σ is None:
             return perfect_act, perfect_act
         return perfect_act, unva(np.random.multivariate_normal(va(perfect_act), self.Σ))
+
+    def act_batch(self, obs, frames=None):
+        return [self.act(o) for o in obs]

@@ -12,20 +12,22 @@ import tqdm
 from concurrent.futures import ProcessPoolExecutor
 import pickle
 
-def compute(pars):
-    return main(*pars)
+def load_net(args, epoch):
+    return zoo.Network(
+        archi='resnet18', timesteps=3, input_type='rgbd',
+        action_space='tool', dim_action=4,
+        path='./storage/models/{}/resnet18_{}.pth'.format(args.net, epoch if epoch >= 0 else 'current'),
+        steps_action=4, lam_grip=.1, device='cuda')
 
 def main(args, epoch, verbose=True):
-    seed = 9218546
-    env = utils.env.make_env(seed)
     if args.net != '%expert':
-        net = zoo.Network(
-            archi='resnet18', timesteps=3, input_type='rgbd',
-            action_space='tool', dim_action=4,
-            path='./storage/models/{}/resnet18_{}.pth'.format(args.net, epoch if epoch >= 0 else 'current'),
-            steps_action=4, lam_grip=.1, device='cuda')
+        net = load_net(args, epoch)
 
-    expert = PickPlaceExpert()
+    return sequential(args, args.seed, net, verbose)
+
+def sequential(args, seed, net, verbose):
+    env = utils.env.make_env(seed)
+    expert = PickPlaceExpert(env.dt)
 
     if args.render:
         plt.ion()
@@ -41,7 +43,6 @@ def main(args, epoch, verbose=True):
         ep_err = 0
         env.seed(seed + ep)
         obs = env.reset()
-        expert.reset(env.dt, obs['cube_pos'], obs['goal_pos'])
         done = False
         if args.net != '%expert':
             frames = None
@@ -86,6 +87,36 @@ def main(args, epoch, verbose=True):
         print('mean | rews={}, errs={}, succs={}'.format(mean_ep_rew, mean_ep_err, mean_success))
     return mean_success
 
+def concurrent(args, epoch, envs):
+    expert = utils.expert.DAggerExpert(PickPlaceExpert(envs[0].dt), load_net(args, epoch))
+    expert.β = 0
+    mean_success = 0
+
+    for i, env in enumerate(envs):
+        env.seed(args.seed + i)
+    obs = [env.reset() for env in envs]
+    done = [False for _ in envs]
+    frames = None
+    for _ in tqdm.trange(50, desc='sample', position=0):
+        frame = utils.other.transform_frames(obs)
+        if frames is None:
+            frames = frame.repeat(1, 3, 1, 1)
+        else:
+            frames[:, :-4] = frames[:, 4:]
+            frames[:, -4:] = frame
+
+        acts = expert.act_batch(obs, frames)
+        for i, env in enumerate(envs):
+            if done[i]:
+                continue
+            perfect_act, act = acts[i]
+            obs[i], _, done[i], s = env.step(act)
+            if s['is_success']:
+                done[i] = True
+                mean_success += 1 / args.eps
+        if all(done):
+            break
+    return mean_success
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -95,15 +126,17 @@ if __name__ == '__main__':
     parser.add_argument('--save', action='store_const', default=False, const=True)
     parser.add_argument('--eps', action='store', default=1000, type=int)
     parser.add_argument('--all', action='store', default=0, type=int)
+    parser.add_argument('--seed', action='store', default=9218546, type=int)
     args = parser.parse_args()
     if args.all > 0:
         epochs = np.arange(0, args.epoch, args.all) + args.all
-        with ProcessPoolExecutor(max_workers=6) as executor:
-            success = []
-            for s in tqdm.tqdm(
-                    executor.map(compute, [(args, epoch, False) for epoch in epochs]),
-                    total=len(epochs)):
-                success.append(s)
+        success = []
+        envs = [
+            utils.env.make_env(args.seed + i)
+            for i in tqdm.trange(args.eps, desc='init envs')
+        ]
+        for epoch in tqdm.tqdm(epochs, total=len(epochs), position=1):
+            success.append(concurrent(args, epoch, envs))
         print(success)
         pickle.dump(success, open('storage/success/{}'.format(args.net), 'wb'))
     else:

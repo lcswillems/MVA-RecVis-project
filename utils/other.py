@@ -5,10 +5,10 @@ import torch.utils.data as data
 def va(action):
     """Vectorize the dict action."""
 
-    return np.append(action['linear_velocity'], action['grip_velocity'])
+    return np.insert(action['linear_velocity'], 0, action['grip_velocity'])
 
 def unva(action):
-    return dict(linear_velocity=action[:3], grip_velocity=action[3])
+    return dict(linear_velocity=action[1:], grip_velocity=action[0])
 
 def aaT(a):
     """Take a numpy vector a and compute the matrix a^T a."""
@@ -52,3 +52,16 @@ class MultiFrameDataset(data.Dataset):
 
     def __len__(self):
         return self.tensors[0].size(0)
+
+def pred_to_act(pred):
+    action = dict(
+        grip_velocity=2 * (pred[0] > pred[1]) - 1,
+        linear_velocity=pred[2:5]
+    )
+    return action
+
+def pred_to_vector_act(pred):
+    return np.concatenate((
+        2 * (pred[:, 0:1] > pred[:, 1:2]) - 1,
+        pred[:, 2:5],
+    ), axis=1)
