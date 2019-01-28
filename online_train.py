@@ -2,8 +2,6 @@ import bc.net.zoo as zoo
 import torch as th
 import numpy as np
 import torch.utils.data as data
-import utils.env
-import utils.expert
 from concurrent.futures import ThreadPoolExecutor as Executor
 import argparse
 import utils

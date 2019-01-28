@@ -1,15 +1,11 @@
-import utils.env
 import argparse
 import utils
-from utils.expert import PickPlaceExpert
 import matplotlib.pyplot as plt
 import matplotlib.image
-import torch as th
 import bc.net.zoo as zoo
 import numpy as np
 import tqdm
 
-from concurrent.futures import ProcessPoolExecutor
 import pickle
 
 def load_net(args, epoch):
@@ -27,7 +23,7 @@ def main(args, epoch, verbose=True):
 
 def sequential(args, seed, net, verbose):
     env = utils.env.make_env(seed)
-    expert = PickPlaceExpert(env.dt)
+    expert = utils.expert.PickPlaceExpert(env.dt)
 
     if args.render:
         plt.ion()
@@ -88,7 +84,7 @@ def sequential(args, seed, net, verbose):
     return mean_success
 
 def concurrent(args, epoch, envs):
-    expert = utils.expert.DAggerExpert(PickPlaceExpert(envs[0].dt), load_net(args, epoch))
+    expert = utils.expert.DAggerExpert(utils.expert.PickPlaceExpert(envs[0].dt), load_net(args, epoch))
     expert.β = 0
     mean_success = 0
 

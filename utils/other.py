@@ -4,17 +4,10 @@ import torch.utils.data as data
 
 def va(action):
     """Vectorize the dict action."""
-
     return np.insert(action['linear_velocity'], 0, action['grip_velocity'])
 
 def unva(action):
     return dict(linear_velocity=action[1:], grip_velocity=action[0])
-
-def aaT(a):
-    """Take a numpy vector a and compute the matrix a^T a."""
-
-    a = a.reshape(-1, 1)
-    return a.dot(a.T)
 
 def transform_frames(frames):
     frames = th.stack([

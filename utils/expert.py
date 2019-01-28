@@ -1,5 +1,4 @@
 import numpy as np
-from utils import va, unva
 import utils
 
 class PickPlaceExpert:
@@ -75,7 +74,7 @@ class GaussianExpert:
         perfect_act, _ = self.expert.act(obs)
         if self.Σ is None:
             return perfect_act, perfect_act
-        return perfect_act, unva(np.random.multivariate_normal(va(perfect_act), self.Σ))
+        return perfect_act, utils.other.unva(np.random.multivariate_normal(utils.other.va(perfect_act), self.Σ))
 
     def act_batch(self, obs, frames=None):
         return [self.act(o) for o in obs]
