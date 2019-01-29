@@ -37,6 +37,6 @@ python eval.py dagger 6144 --eps 500 --all 128 ;
 python eval.py dart 6144 --eps 500 --all 128
 ```
 
-Then just execute [the notebook](Results.ipynb).
+Or just execute [the notebook](Results.ipynb).
 
 *A GPU with a lot of memory is required to run this. It should take about 48 hours to train and evaluate.*
